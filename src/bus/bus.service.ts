@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -96,7 +95,7 @@ export class BusService {
         throw new ConflictException('Duplicate value');
       }
       if (driverError?.code === 'ER_NO_REFERENCED_ROW_2') {
-        throw new BadRequestException('Invalid empresaId');
+        throw new NotFoundException('Empresa not found');
       }
     }
     throw error;

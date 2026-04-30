@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class CreateRutaDto {
 	@IsString()
@@ -13,6 +13,7 @@ export class CreateRutaDto {
 	descripcion?: string | null;
 
 	@Type(() => Number)
-	@IsNumber()
-	tarifa!: string;
+	@IsNumber({ maxDecimalPlaces: 2 })
+	@Min(0)
+	tarifa!: number;
 }

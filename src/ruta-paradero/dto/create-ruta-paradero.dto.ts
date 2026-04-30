@@ -19,9 +19,9 @@ export class CreateRutaParaderoDto {
 
 	@IsOptional()
 	@Type(() => Number)
-	@IsNumber()
+	@IsNumber({ maxDecimalPlaces: 2 })
 	@Min(0)
-	distanciaDesdeAnterior?: string | null;
+	distanciaDesdeAnterior?: number | null;
 
 	@IsOptional()
 	@Type(() => Number)

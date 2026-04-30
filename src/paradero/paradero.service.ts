@@ -18,7 +18,11 @@ export class ParaderoService {
   ) {}
 
   async create(createParaderoDto: CreateParaderoDto): Promise<Paradero> {
-    const paradero = this.paraderoRepository.create(createParaderoDto);
+    const paradero = this.paraderoRepository.create({
+      ...createParaderoDto,
+      latitud: this.formatDecimal(createParaderoDto.latitud, 7),
+      longitud: this.formatDecimal(createParaderoDto.longitud, 7),
+    });
     try {
       return await this.paraderoRepository.save(paradero);
     } catch (error) {
@@ -27,11 +31,16 @@ export class ParaderoService {
   }
 
   async findAll(): Promise<Paradero[]> {
-    return this.paraderoRepository.find();
+    return this.paraderoRepository.find({
+      relations: { rutasEnLasQueAparece: { ruta: true } },
+    });
   }
 
   async findOne(id: number): Promise<Paradero> {
-    const paradero = await this.paraderoRepository.findOne({ where: { id } });
+    const paradero = await this.paraderoRepository.findOne({
+      where: { id },
+      relations: { rutasEnLasQueAparece: { ruta: true } },
+    });
     if (!paradero) {
       throw new NotFoundException('Paradero not found');
     }
@@ -43,7 +52,15 @@ export class ParaderoService {
     if (!paradero) {
       throw new NotFoundException('Paradero not found');
     }
-    Object.assign(paradero, updateParaderoDto);
+    const { latitud, longitud, ...updateData } = updateParaderoDto;
+    Object.assign(paradero, updateData);
+
+    if (latitud !== undefined) {
+      paradero.latitud = this.formatDecimal(latitud, 7);
+    }
+    if (longitud !== undefined) {
+      paradero.longitud = this.formatDecimal(longitud, 7);
+    }
     try {
       return await this.paraderoRepository.save(paradero);
     } catch (error) {
@@ -64,6 +81,32 @@ export class ParaderoService {
     }
   }
 
+  async findCercanos(lat: number, lng: number): Promise<
+    Array<{ paradero: Paradero; distanciaKm: number }>
+  > {
+    const earthRadiusKm = 6371;
+
+    const { entities, raw } = await this.paraderoRepository
+      .createQueryBuilder('p')
+      .addSelect(
+        `(${earthRadiusKm} * acos(` +
+          `cos(radians(:lat)) * cos(radians(CAST(p.latitud AS DECIMAL(10,7)))) * ` +
+          `cos(radians(CAST(p.longitud AS DECIMAL(10,7))) - radians(:lng)) + ` +
+          `sin(radians(:lat)) * sin(radians(CAST(p.latitud AS DECIMAL(10,7))))` +
+        `))`,
+        'distancia_km',
+      )
+      .setParameters({ lat, lng })
+      .orderBy('distancia_km', 'ASC')
+      .limit(5)
+      .getRawAndEntities();
+
+    return entities.map((paradero, index) => ({
+      paradero,
+      distanciaKm: Number(raw[index]?.distancia_km ?? 0),
+    }));
+  }
+
   private handleDbError(error: unknown): never {
     if (error instanceof QueryFailedError) {
       const driverError = error.driverError as { code?: string } | undefined;
@@ -75,5 +118,9 @@ export class ParaderoService {
       }
     }
     throw error;
+  }
+
+  private formatDecimal(value: number, decimals: number): string {
+    return Number(value).toFixed(decimals);
   }
 }

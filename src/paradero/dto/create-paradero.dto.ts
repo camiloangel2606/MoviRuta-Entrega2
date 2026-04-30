@@ -9,16 +9,16 @@ export class CreateParaderoDto {
 	nombre!: string;
 
 	@Type(() => Number)
-	@IsNumber()
+	@IsNumber({ maxDecimalPlaces: 7 })
 	@Min(-90)
 	@Max(90)
-	latitud!: string;
+	latitud!: number;
 
 	@Type(() => Number)
-	@IsNumber()
+	@IsNumber({ maxDecimalPlaces: 7 })
 	@Min(-180)
 	@Max(180)
-	longitud!: string;
+	longitud!: number;
 
 	@IsOptional()
 	@IsEnum(ParaderoTipo)

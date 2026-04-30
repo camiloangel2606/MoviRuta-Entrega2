@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ParaderoService } from './paradero.service';
 import { CreateParaderoDto } from './dto/create-paradero.dto';
 import { UpdateParaderoDto } from './dto/update-paradero.dto';
+import { QueryParaderosCercanosDto } from './dto/query-paraderos-cercanos.dto';
 
 @Controller('paradero')
 export class ParaderoController {
@@ -15,6 +16,11 @@ export class ParaderoController {
   @Get()
   findAll() {
     return this.paraderoService.findAll();
+  }
+
+  @Get('cercanos')
+  findCercanos(@Query() query: QueryParaderosCercanosDto) {
+    return this.paraderoService.findCercanos(query.lat, query.lng);
   }
 
   @Get(':id')

@@ -10,9 +10,14 @@ async function bootstrap() {
       whitelist: true,            // limpia campos no definidos
       forbidNonWhitelisted: true, // error si mandan basura
       transform: true,            // transforma types de DTOs
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 
-  await app.listen(process.env.PORT || 3000);
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(`Server running on http://localhost:${port}`);
 }
 bootstrap();

@@ -1,6 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { RutaService } from './ruta.service';
 import { CreateRutaDto } from './dto/create-ruta.dto';
+import { CreateRutaConParaderosDto } from './dto/create-ruta-con-paraderos.dto';
+import { QueryRutaDto } from './dto/query-ruta.dto';
 import { UpdateRutaDto } from './dto/update-ruta.dto';
 
 @Controller('ruta')
@@ -12,9 +14,19 @@ export class RutaController {
     return this.rutaService.create(createRutaDto);
   }
 
+  @Post('con-paraderos')
+  createConParaderos(@Body() createRutaDto: CreateRutaConParaderosDto) {
+    return this.rutaService.createConParaderos(createRutaDto);
+  }
+
   @Get()
-  findAll() {
-    return this.rutaService.findAll();
+  findAll(@Query() query: QueryRutaDto) {
+    return this.rutaService.findAll(query.nombre);
+  }
+
+  @Get(':id/paraderos')
+  findParaderos(@Param('id') id: string) {
+    return this.rutaService.getParaderosDeRuta(+id);
   }
 
   @Get(':id')

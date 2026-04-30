@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -28,8 +27,14 @@ export class RutaParaderoService {
     const ruta = await this.getRutaOrThrow(rutaId);
     const paradero = await this.getParaderoOrThrow(paraderoId);
 
+    const distancia =
+      rpData.distanciaDesdeAnterior === undefined || rpData.distanciaDesdeAnterior === null
+        ? null
+        : this.formatDecimal(rpData.distanciaDesdeAnterior, 2);
+
     const rutaParadero = this.rutaParaderoRepository.create({
       ...rpData,
+      distanciaDesdeAnterior: distancia,
       ruta,
       paradero,
     });
@@ -65,7 +70,7 @@ export class RutaParaderoService {
       throw new NotFoundException('RutaParadero not found');
     }
 
-    const { rutaId, paraderoId, ...updateData } = updateRutaParaderoDto;
+    const { rutaId, paraderoId, distanciaDesdeAnterior, ...updateData } = updateRutaParaderoDto;
     if (rutaId !== undefined) {
       rutaParadero.ruta = await this.getRutaOrThrow(rutaId);
     }
@@ -73,6 +78,13 @@ export class RutaParaderoService {
       rutaParadero.paradero = await this.getParaderoOrThrow(paraderoId);
     }
     Object.assign(rutaParadero, updateData);
+
+    if (distanciaDesdeAnterior !== undefined) {
+      rutaParadero.distanciaDesdeAnterior =
+        distanciaDesdeAnterior === null
+          ? null
+          : this.formatDecimal(distanciaDesdeAnterior, 2);
+    }
 
     try {
       return await this.rutaParaderoRepository.save(rutaParadero);
@@ -112,14 +124,25 @@ export class RutaParaderoService {
 
   private handleDbError(error: unknown): never {
     if (error instanceof QueryFailedError) {
-      const driverError = error.driverError as { code?: string } | undefined;
+      const driverError = error.driverError as { code?: string; sqlMessage?: string } | undefined;
+      const sqlMessage = driverError?.sqlMessage ?? '';
       if (driverError?.code === 'ER_DUP_ENTRY') {
+        if (sqlMessage.includes('UQ_ruta_paradero_ruta_orden')) {
+          throw new ConflictException('Ya existe un paradero con ese orden en la ruta');
+        }
+        if (sqlMessage.includes('UQ_ruta_paradero_ruta_paradero')) {
+          throw new ConflictException('El paradero ya esta asociado a la ruta');
+        }
         throw new ConflictException('Duplicate value');
       }
       if (driverError?.code === 'ER_NO_REFERENCED_ROW_2') {
-        throw new BadRequestException('Invalid rutaId or paraderoId');
+        throw new NotFoundException('Ruta or paradero not found');
       }
     }
     throw error;
+  }
+
+  private formatDecimal(value: number, decimals: number): string {
+    return Number(value).toFixed(decimals);
   }
 }
