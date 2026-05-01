@@ -6,6 +6,14 @@ import { BusModule } from './bus/bus.module';
 import { RutaModule } from './ruta/ruta.module';
 import { ParaderoModule } from './paradero/paradero.module';
 import { RutaParaderoModule } from './ruta-paradero/ruta-paradero.module';
+import { GrupoModule } from './grupo/grupo.module';
+import { MensajeModule } from './mensaje/mensaje.module';
+import { DestinatarioPersonaModule } from './destinatario-persona/destinatario-persona.module';
+import { DestinatarioGrupoModule } from './destinatario-grupo/destinatario-grupo.module';
+import { CiudadanoModule } from './ciudadano/ciudadano.module';
+import { NodoModule } from './nodo/nodo.module';
+import { BoletoModule } from './boleto/boleto.module';
+import { PersonaModule } from './persona/persona.module';
 
 @Module({
   imports: [
@@ -22,13 +30,21 @@ import { RutaParaderoModule } from './ruta-paradero/ruta-paradero.module';
 
       // SOLO si quieres avanzar sin migraciones al inicio:
       // synchronize: true (solo 1-2 días) y luego lo apagas.
-      synchronize: false,
+      synchronize: true,
     }),
     EmpresaModule,
     BusModule,
     RutaModule,
     ParaderoModule,
     RutaParaderoModule,
+    PersonaModule,
+    GrupoModule,
+    MensajeModule,
+    DestinatarioPersonaModule,
+    DestinatarioGrupoModule,
+    CiudadanoModule,
+    NodoModule,
+    BoletoModule,
   ],
 })
 export class AppModule {}

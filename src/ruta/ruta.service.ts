@@ -94,10 +94,14 @@ export class RutaService {
         });
 
         await manager.getRepository(RutaParadero).save(paraderosEnRuta);
-        return manager.getRepository(Ruta).findOneOrFail({
+        const rutaCompleta = await manager.getRepository(Ruta).findOneOrFail({
           where: { id: rutaCreada.id },
           relations: { paraderosEnRuta: { paradero: true } },
+          order: { paraderosEnRuta: { orden: 'ASC' } },
         });
+
+        rutaCompleta.paraderosEnRuta.sort((left, right) => left.orden - right.orden);
+        return rutaCompleta;
       });
     } catch (error) {
       this.handleDbError(error);
@@ -187,8 +191,18 @@ export class RutaService {
 
   private handleDbError(error: unknown): never {
     if (error instanceof QueryFailedError) {
-      const driverError = error.driverError as { code?: string } | undefined;
+      const driverError = error.driverError as { code?: string; sqlMessage?: string } | undefined;
+      const sqlMessage = driverError?.sqlMessage ?? '';
       if (driverError?.code === 'ER_DUP_ENTRY') {
+        if (sqlMessage.includes('ruta.nombre')) {
+          throw new ConflictException('Ya existe una ruta con ese nombre');
+        }
+        if (sqlMessage.includes('UQ_ruta_paradero_ruta_orden')) {
+          throw new ConflictException('Ya existe un orden repetido en la ruta');
+        }
+        if (sqlMessage.includes('UQ_ruta_paradero_ruta_paradero')) {
+          throw new ConflictException('El paradero ya esta asociado a la ruta');
+        }
         throw new ConflictException('Duplicate value');
       }
       if (driverError?.code === 'ER_ROW_IS_REFERENCED_2') {
