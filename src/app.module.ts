@@ -14,6 +14,9 @@ import { CiudadanoModule } from './ciudadano/ciudadano.module';
 import { NodoModule } from './nodo/nodo.module';
 import { BoletoModule } from './boleto/boleto.module';
 import { PersonaModule } from './persona/persona.module';
+import { ConductorModule } from './conductor/conductor.module';
+import { TurnoModule } from './turno/turno.module';
+import { HistorialModule } from './historial/historial.module';
 
 @Module({
   imports: [
@@ -45,6 +48,9 @@ import { PersonaModule } from './persona/persona.module';
     CiudadanoModule,
     NodoModule,
     BoletoModule,
+    ConductorModule,
+    TurnoModule,
+    HistorialModule,
   ],
 })
 export class AppModule {}
