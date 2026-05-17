@@ -31,6 +31,121 @@
 $ npm install
 ```
 
+## Postman
+
+Crear GPS (POST /gps):
+
+```json
+{
+  "busId": 1,
+  "deviceId": "GPS-001"
+}
+```
+
+Actualizar posicion (PATCH /gps/:id/posicion):
+
+```json
+{
+  "lat": 4.710989,
+  "lng": -74.072092
+}
+```
+
+Crear direccion (POST /direccion):
+
+```json
+{
+  "ciudadanoId": 1,
+  "linea1": "Calle 123 #45-67",
+  "ciudad": "Bogota",
+  "departamento": "Cundinamarca",
+  "linea2": "Apto 302",
+  "codigoPostal": "110111"
+}
+```
+
+Actualizar direccion (PATCH /direccion/:id):
+
+```json
+{
+  "linea1": "Carrera 7 #12-34",
+  "ciudad": "Bogota"
+}
+```
+
+Crear metodo de pago (POST /metodo-pago):
+
+```json
+{
+  "nombre": "Visa",
+  "tipo": "TARJETA"
+}
+```
+
+Crear metodo de pago ciudadano (POST /metodo-pago-ciudadano):
+
+```json
+{
+  "ciudadanoId": 1,
+  "metodoPagoId": 1,
+  "identificador": "1234",
+  "saldo": 50.75
+}
+```
+
+Actualizar metodo de pago (PATCH /metodo-pago/:id):
+
+```json
+{
+  "nombre": "Mastercard"
+}
+```
+
+Actualizar metodo de pago ciudadano (PATCH /metodo-pago-ciudadano/:id):
+
+```json
+{
+  "saldo": 80.5
+}
+```
+
+Crear incidente (POST /incidente):
+
+```json
+{
+  "busId": 1,
+  "reportadoPorId": 10,
+  "tipo": "MECANICO",
+  "gravedad": "MEDIA",
+  "descripcion": "Falla en el sistema de frenos",
+  "estado": "PENDIENTE",
+  "latitud": 4.710989,
+  "longitud": -74.072092,
+  "fotos": [
+    "https://example.com/foto1.jpg",
+    "https://example.com/foto2.jpg"
+  ]
+}
+```
+
+Actualizar incidente (PATCH /incidente/:id):
+
+```json
+{
+  "estado": "EN_PROCESO",
+  "fotos": ["https://example.com/foto3.jpg"]
+}
+```
+
+Crear foto (POST /foto):
+
+```json
+{
+  "incidenteId": 1,
+  "url": "https://example.com/foto4.jpg"
+}
+```
+
 ## Compile and run the project
 
 ```bash

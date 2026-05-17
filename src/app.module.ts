@@ -17,6 +17,13 @@ import { PersonaModule } from './persona/persona.module';
 import { ConductorModule } from './conductor/conductor.module';
 import { TurnoModule } from './turno/turno.module';
 import { HistorialModule } from './historial/historial.module';
+import { GpsModule } from './gps/gps.module';
+import { DireccionModule } from './direccion/direccion.module';
+import { MetodoPagoModule } from './metodo-pago/metodo-pago.module';
+import { MetodoPagoCiudadanoModule } from './metodo-pago-ciudadano/metodo-pago-ciudadano.module';
+import { IncidenteModule } from './incidente/incidente.module';
+import { FotoModule } from './foto/foto.module';
+import { IncidenteBusModule } from './incidente-bus/incidente-bus.module';
 
 @Module({
   imports: [
@@ -51,6 +58,13 @@ import { HistorialModule } from './historial/historial.module';
     ConductorModule,
     TurnoModule,
     HistorialModule,
+    GpsModule,
+    DireccionModule,
+    MetodoPagoModule,
+    MetodoPagoCiudadanoModule,
+    IncidenteModule,
+    FotoModule,
+    IncidenteBusModule,
   ],
 })
 export class AppModule {}
