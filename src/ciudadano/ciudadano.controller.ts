@@ -26,7 +26,7 @@ export class CiudadanoController {
   }
 
   @Patch(':id')
-  @UseGuards(SecurityGuard) // <-- SÓLO AQUÍ. Intercepta el PATCH.
+  //@UseGuards(SecurityGuard) // <-- SÓLO AQUÍ. Intercepta el PATCH.
   update(@Param('id') id: string, @Body() updateCiudadanoDto: UpdateCiudadanoDto) {
     const ciudadanoId = this.toPositiveInt(id, 'Ciudadano id');
     return this.ciudadanoService.update(ciudadanoId, updateCiudadanoDto);

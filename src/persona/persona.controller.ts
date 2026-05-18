@@ -2,6 +2,8 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, NotFoundException } 
 import { PersonaService } from './persona.service';
 import { CreatePersonaDto } from './dto/create-persona.dto';
 import { UpdatePersonaDto } from './dto/update-persona.dto';
+import { UseGuards } from '@nestjs/common';
+import { SecurityGuard } from 'src/core/guards/security.guard';
 
 @Controller('persona')
 export class PersonaController {
@@ -22,6 +24,15 @@ export class PersonaController {
     return this.personaService.findOne(+id);
   }
 
+  @Patch('security/:securityUserId')
+  //@UseGuards(SecurityGuard)
+  updateBySecurityId(
+    @Param('securityUserId') securityUserId: string,
+    @Body() updatePersonaDto: UpdatePersonaDto
+  ) {
+    return this.personaService.updateBySecurityId(securityUserId, updatePersonaDto);
+  }
+  
   @Patch(':id')
   update(@Param('id') id: string, @Body() updatePersonaDto: UpdatePersonaDto) {
     return this.personaService.update(+id, updatePersonaDto);

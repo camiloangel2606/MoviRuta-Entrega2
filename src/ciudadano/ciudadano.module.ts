@@ -9,6 +9,6 @@ import { Ciudadano } from './entities/ciudadano.entity';
   imports: [TypeOrmModule.forFeature([Ciudadano, Persona])],
   controllers: [CiudadanoController],
   providers: [CiudadanoService],
-  exports: [TypeOrmModule],
+  exports: [TypeOrmModule, CiudadanoService] // Exportamos el servicio para que pueda ser usado en otros módulos si es necesario,
 })
 export class CiudadanoModule {}
