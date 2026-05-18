@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, NotFoundException } from '@nestjs/common';
 import { PersonaService } from './persona.service';
 import { CreatePersonaDto } from './dto/create-persona.dto';
 import { UpdatePersonaDto } from './dto/update-persona.dto';
@@ -30,5 +30,14 @@ export class PersonaController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.personaService.remove(+id);
+  }
+
+  @Get('security/:securityUserId')
+  async findBySecurityId(@Param('securityUserId') securityUserId: string) {
+    const persona = await this.personaService.findBySecurityId(securityUserId);
+    if (!persona) {
+      throw new NotFoundException('La persona no está registrada en el módulo de negocio');
+    }
+    return persona;
   }
 }

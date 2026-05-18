@@ -21,4 +21,10 @@ export class CreatePersonaDto {
 	@IsNotEmpty()
 	@MaxLength(30)
 	telefono?: string | null;
+	
+	@IsString()
+	@IsNotEmpty()
+	@MaxLength(120)
+	securityUserId!: string;
+
 }

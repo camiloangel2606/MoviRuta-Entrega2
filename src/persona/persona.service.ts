@@ -33,6 +33,15 @@ export class PersonaService {
     return persona;
   }
 
+  // =========================================================
+  // NUEVO MÉTODO: Busca la persona por el ID de MS Security
+  // =========================================================
+  async findBySecurityId(securityUserId: string): Promise<Persona | null> {
+    return await this.personaRepository.findOne({
+      where: { securityUserId: securityUserId }
+    });
+  }
+
   async update(id: number, updatePersonaDto: UpdatePersonaDto): Promise<Persona> {
     const persona = await this.personaRepository.findOne({ where: { id } });
     if (!persona) {
@@ -61,8 +70,12 @@ export class PersonaService {
 
   private handleDbError(error: unknown): never {
     if (error instanceof QueryFailedError) {
-      const driverError = error.driverError as { code?: string } | undefined;
+      const driverError = error.driverError as { code?: string; message?: string } | undefined;
       if (driverError?.code === 'ER_DUP_ENTRY') {
+        // Validación dinámica por si el error de duplicado es por Email o por el ID de Seguridad
+        if (driverError.message?.includes('security_user_id')) {
+          throw new ConflictException('Este usuario de seguridad ya tiene una persona vinculada en el negocio.');
+        }
         throw new ConflictException('Email already exists');
       }
     }

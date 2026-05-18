@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { SecurityGuard } from '../../core/guards/security.guard';
 
 @Entity({ name: 'persona' })
 export class Persona {
@@ -22,6 +23,10 @@ export class Persona {
 
   @Column({ type: 'varchar', length: 30, nullable: true })
   telefono?: string | null;
+
+  // Ejemplo en TypeORM para el backend de negocio
+  @Column({ name: 'security_user_id', type: 'varchar', length: 50, unique: true, nullable: true })
+  securityUserId!: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

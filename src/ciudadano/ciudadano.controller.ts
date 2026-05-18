@@ -2,11 +2,13 @@ import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post 
 import { CiudadanoService } from './ciudadano.service';
 import { CreateCiudadanoDto } from './dto/create-ciudadano.dto';
 import { UpdateCiudadanoDto } from './dto/update-ciudadano.dto';
+import { UseGuards } from '@nestjs/common';
+import { SecurityGuard } from 'src/core/guards/security.guard';
 
 @Controller('ciudadano')
 export class CiudadanoController {
   constructor(private readonly ciudadanoService: CiudadanoService) {}
-
+  
   @Post()
   create(@Body() createCiudadanoDto: CreateCiudadanoDto) {
     return this.ciudadanoService.create(createCiudadanoDto);
@@ -24,6 +26,7 @@ export class CiudadanoController {
   }
 
   @Patch(':id')
+  @UseGuards(SecurityGuard) // <-- SÓLO AQUÍ. Intercepta el PATCH.
   update(@Param('id') id: string, @Body() updateCiudadanoDto: UpdateCiudadanoDto) {
     const ciudadanoId = this.toPositiveInt(id, 'Ciudadano id');
     return this.ciudadanoService.update(ciudadanoId, updateCiudadanoDto);
