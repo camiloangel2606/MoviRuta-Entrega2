@@ -33,7 +33,7 @@ export class ProgramacionService {
   async create(createProgramacionDto: CreateProgramacionDto): Promise<Programacion> {
     const ruta = await this.getRutaOrThrow(createProgramacionDto.rutaId);
     const bus = await this.getBusOrThrow(createProgramacionDto.busId);
-    const conductor = await this.getConductorOrThrow(createProgramacionDto.conductorAsignadoId);
+    const conductor = await this.getConductorOrThrow(createProgramacionDto.conductorId);
 
     const toleranciaMinutos = createProgramacionDto.toleranciaMinutos ?? 0;
     await this.ensureNoOverlap(bus.id, createProgramacionDto.fecha, createProgramacionDto.horaSalida, toleranciaMinutos);
@@ -128,9 +128,9 @@ export class ProgramacionService {
       programacion.bus = await this.getBusOrThrow(updateProgramacionDto.busId);
     }
 
-    if (updateProgramacionDto.conductorAsignadoId !== undefined) {
+    if (updateProgramacionDto.conductorId !== undefined) {
       programacion.conductorAsignado = await this.getConductorOrThrow(
-        updateProgramacionDto.conductorAsignadoId,
+        updateProgramacionDto.conductorId,
       );
     }
 
@@ -159,7 +159,7 @@ export class ProgramacionService {
       updateProgramacionDto.fecha !== undefined ||
       updateProgramacionDto.horaSalida !== undefined ||
       updateProgramacionDto.toleranciaMinutos !== undefined ||
-      updateProgramacionDto.conductorAsignadoId !== undefined;
+      updateProgramacionDto.conductorId !== undefined;
 
     if (shouldValidate) {
       await this.ensureNoOverlap(

@@ -41,5 +41,5 @@ export class CreateProgramacionDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  conductorAsignadoId!: number;
+  conductorId!: number;
 }
