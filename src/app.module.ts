@@ -24,6 +24,7 @@ import { MetodoPagoCiudadanoModule } from './metodo-pago-ciudadano/metodo-pago-c
 import { IncidenteModule } from './incidente/incidente.module';
 import { FotoModule } from './foto/foto.module';
 import { IncidenteBusModule } from './incidente-bus/incidente-bus.module';
+import { ProgramacionModule } from './programacion/programacion.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { IncidenteBusModule } from './incidente-bus/incidente-bus.module';
     IncidenteModule,
     FotoModule,
     IncidenteBusModule,
+    ProgramacionModule,
   ],
 })
 export class AppModule {}
