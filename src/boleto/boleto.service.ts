@@ -54,15 +54,34 @@ export class BoletoService {
     }
   }
 
-  async findAll(): Promise<Boleto[]> {
-    return this.boletoRepository.find({
+  // ⚡ MODIFICACIÓN SEGURA: Filtro relacional adaptado a tu estructura
+  async findAll(ciudadanoId?: number) {
+    if (ciudadanoId) {
+      return await this.boletoRepository.find({
+        where: {
+          ciudadano: {
+            id: ciudadanoId // Filtra de forma interna el ID en la entidad relacional
+          }
+        },
+        relations: {
+          ciudadano: { persona: true },
+          bus: true,
+          ruta: true,
+          paraderoAbordaje: true,
+          paraderoDescenso: true,
+        }
+      });
+    }
+
+    // Si no viene ningún ID, retorna todo el histórico global (idéntico a tu lógica anterior)
+    return await this.boletoRepository.find({
       relations: {
         ciudadano: { persona: true },
         bus: true,
         ruta: true,
         paraderoAbordaje: true,
         paraderoDescenso: true,
-      },
+      }
     });
   }
 

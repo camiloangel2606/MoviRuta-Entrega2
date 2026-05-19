@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CreateBoletoDto } from './dto/create-boleto.dto';
 import { UpdateBoletoDto } from './dto/update-boleto.dto';
 import { BoletoService } from './boleto.service';
@@ -12,9 +12,11 @@ export class BoletoController {
     return this.boletoService.create(createBoletoDto);
   }
 
+  // ✅ CORREGIDO: Ahora sí le inyectamos la variable al método del servicio
   @Get()
-  findAll() {
-    return this.boletoService.findAll();
+  findAll(@Query('ciudadanoId') ciudadanoId?: string) {
+    // Si existe ciudadanoId, se lo pasamos convertido a número (+ciudadanoId)
+    return this.boletoService.findAll(ciudadanoId ? +ciudadanoId : undefined);
   }
 
   @Get(':id')
