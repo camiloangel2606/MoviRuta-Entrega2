@@ -1,8 +1,7 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, NotFoundException, Headers, UseGuards } from '@nestjs/common';
 import { PersonaService } from './persona.service';
 import { CreatePersonaDto } from './dto/create-persona.dto';
 import { UpdatePersonaDto } from './dto/update-persona.dto';
-import { UseGuards } from '@nestjs/common';
 import { SecurityGuard } from 'src/core/guards/security.guard';
 
 @Controller('persona')
@@ -43,12 +42,19 @@ export class PersonaController {
     return this.personaService.remove(+id);
   }
 
+  // 1. MANTENEMOS EL GET (Para que Angular verifique si la persona existe al cargar el perfil)
   @Get('security/:securityUserId')
-  async findBySecurityId(@Param('securityUserId') securityUserId: string) {
+  async getPerfilSincronizado(@Param('securityUserId') securityUserId: string) {
+    // Buscamos la persona directamente en la BD de NestJS sin llamar a Spring Boot por debajo
     const persona = await this.personaService.findBySecurityId(securityUserId);
     if (!persona) {
-      throw new NotFoundException('La persona no está registrada en el módulo de negocio');
+      throw new NotFoundException('Persona no encontrada en el módulo de negocio');
     }
     return persona;
+  }
+
+  @Post('security/:securityUserId/verificar-conductor')
+  async verificarConductor(@Param('securityUserId') securityUserId: string) {
+    return await this.personaService.verificarYCrearConductorManualmente(securityUserId);
   }
 }

@@ -4,20 +4,52 @@ import { QueryFailedError, Repository } from 'typeorm';
 import { CreatePersonaDto } from './dto/create-persona.dto';
 import { UpdatePersonaDto } from './dto/update-persona.dto';
 import { Persona } from './entities/persona.entity';
-import { Ciudadano } from '../ciudadano/entities/ciudadano.entity'; // Asegúrate de que esta ruta sea correcta
+import { Ciudadano } from '../ciudadano/entities/ciudadano.entity';
+import { Conductor } from '../conductor/entities/conductor.entity';
 
 @Injectable()
 export class PersonaService {
+
   constructor(
     @InjectRepository(Persona)
     private readonly personaRepository: Repository<Persona>,
 
     @InjectRepository(Ciudadano)
     private readonly ciudadanoRepository: Repository<Ciudadano>,
+
+    @InjectRepository(Conductor)
+    private readonly conductorRepository: Repository<Conductor>,
   ) {}
 
+  // Busca la persona por su UUID de seguridad (Usado por el GET del controlador)
+  async findBySecurityId(securityUserId: string): Promise<Persona | null> {
+    return await this.personaRepository.findOne({
+      where: { securityUserId: securityUserId }
+    });
+  }
+
+  // Crea la fila en la tabla conductor si no existe (Usado por el POST del controlador)
+  async verificarYCrearConductorManualmente(securityUserId: string): Promise<void> {
+    const persona = await this.findBySecurityId(securityUserId);
+    if (!persona) throw new NotFoundException('Persona no encontrada en el módulo de negocio');
+
+    const existeConductor = await this.conductorRepository.findOne({
+      where: { persona: { id: persona.id } }
+    });
+
+    if (!existeConductor) {
+      const nuevoConductor = this.conductorRepository.create({
+        persona: persona,
+        licencia: null // Se inicializa vacío listo para ser llenado después
+      });
+      await this.conductorRepository.save(nuevoConductor);
+      console.log(`[ÉXITO LOCAL] Fila creada en la tabla conductor para Persona ID: ${persona.id}`);
+    } else {
+      console.log(`[INFO] La persona ID: ${persona.id} ya tiene fila de conductor registrada.`);
+    }
+  }
+
   async create(createPersonaDto: CreatePersonaDto): Promise<Persona> {
-    // 1. Creamos e insertamos la Persona en MySQL
     const nuevaPersona = this.personaRepository.create(createPersonaDto);
     let personaGuardada: Persona;
 
@@ -28,21 +60,14 @@ export class PersonaService {
     }
 
     try {
-      // 2. CREACIÓN CORRECTA EN LA SUBTABLA CIUDADANO
-      // Dejamos que el ID de ciudadano se autoincremente solo (@PrimaryGeneratedColumn)
-      // Y le pasamos el objeto completo 'persona' para cumplir con la relación OneToOne nullable: false
+      // Todo usuario registrado de base se inicializa en la tabla ciudadano
       const nuevoCiudadano = this.ciudadanoRepository.create({
-        persona: personaGuardada, // 👈 Le pasamos la entidad Persona recién guardada
-        fechaNacimiento: null,    // Queda en null hasta que use el formulario de Angular
+        persona: personaGuardada,
+        fechaNacimiento: null,
       });
-      
       await this.ciudadanoRepository.save(nuevoCiudadano);
       console.log(`[ÉXITO] Ciudadano vinculado automáticamente a la Persona ID: ${personaGuardada.id}`);
-      
     } catch (error) {
-      console.error('--- ERROR DETALLADO DE TYPEORM AL CREAR CIUDADANO ---', error);
-      
-      // Rollback: Si el ciudadano falla, borramos la persona para mantener la BD limpia
       await this.personaRepository.remove(personaGuardada);
       throw new ConflictException('No se pudo inicializar la subtabla de Ciudadano. Registro cancelado.');
     }
@@ -60,12 +85,6 @@ export class PersonaService {
       throw new NotFoundException('Persona no encontrada');
     }
     return persona;
-  }
-
-  async findBySecurityId(securityUserId: string): Promise<Persona | null> {
-    return await this.personaRepository.findOne({
-      where: { securityUserId: securityUserId }
-    });
   }
 
   async updateBySecurityId(securityUserId: string, updateData: any) {
