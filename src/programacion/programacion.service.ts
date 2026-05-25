@@ -66,6 +66,8 @@ export class ProgramacionService {
     const qb = this.programacionRepository
       .createQueryBuilder('programacion')
       .leftJoinAndSelect('programacion.ruta', 'ruta')
+      .leftJoinAndSelect('ruta.paraderosEnRuta', 'paraderosEnRuta')       // ← añadido
+      .leftJoinAndSelect('paraderosEnRuta.paradero', 'paradero')           // ← añadido
       .leftJoinAndSelect('programacion.bus', 'bus')
       .leftJoinAndSelect('programacion.conductorAsignado', 'conductorAsignado')
       .leftJoinAndSelect('conductorAsignado.persona', 'persona');
@@ -81,6 +83,10 @@ export class ProgramacionService {
     }
     if (query.fecha) {
       qb.andWhere('programacion.fecha = :fecha', { fecha: query.fecha });
+    }
+    // ── Filtro de estado añadido ──────────────────────────────────────────
+    if (query.estado) {
+      qb.andWhere('programacion.estado = :estado', { estado: query.estado });
     }
 
     qb.orderBy('programacion.fecha', 'ASC')

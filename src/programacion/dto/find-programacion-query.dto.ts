@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsOptional, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class FindProgramacionQueryDto {
   @IsOptional()
@@ -21,6 +21,10 @@ export class FindProgramacionQueryDto {
   conductorId?: number;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   fecha?: string;
+
+  @IsOptional()
+  @IsString()
+  estado?: string;
 }

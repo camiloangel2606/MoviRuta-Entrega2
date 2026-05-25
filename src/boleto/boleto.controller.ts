@@ -1,36 +1,46 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { BoletoService } from './boleto.service';
 import { CreateBoletoDto } from './dto/create-boleto.dto';
 import { UpdateBoletoDto } from './dto/update-boleto.dto';
-import { BoletoService } from './boleto.service';
 
 @Controller('boleto')
 export class BoletoController {
   constructor(private readonly boletoService: BoletoService) {}
 
   @Post()
-  create(@Body() createBoletoDto: CreateBoletoDto) {
-    return this.boletoService.create(createBoletoDto);
+  create(@Body() dto: CreateBoletoDto) {
+    return this.boletoService.create(dto);
   }
 
-  // ✅ CORREGIDO: Ahora sí le inyectamos la variable al método del servicio
   @Get()
   findAll(@Query('ciudadanoId') ciudadanoId?: string) {
-    // Si existe ciudadanoId, se lo pasamos convertido a número (+ciudadanoId)
-    return this.boletoService.findAll(ciudadanoId ? +ciudadanoId : undefined);
+    return this.boletoService.findAll(
+      ciudadanoId !== undefined ? Number(ciudadanoId) : undefined,
+    );
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.boletoService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.boletoService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateBoletoDto: UpdateBoletoDto) {
-    return this.boletoService.update(+id, updateBoletoDto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBoletoDto) {
+    return this.boletoService.update(id, dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.boletoService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.boletoService.remove(id);
   }
 }

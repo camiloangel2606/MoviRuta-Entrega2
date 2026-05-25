@@ -6,10 +6,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
-import { Bus } from '../bus/entities/bus.entity';
 import { Ciudadano } from '../ciudadano/entities/ciudadano.entity';
-import { Paradero } from '../paradero/entities/paradero.entity';
-import { Ruta } from '../ruta/entities/ruta.entity';
+import { MetodoPagoCiudadano } from '../metodo-pago-ciudadano/entities/metodo-pago-ciudadano.entity';
+import { Programacion } from '../programacion/entities/programacion.entity';
+import { RutaParadero } from '../ruta-paradero/entities/ruta-paradero.entity';
 import { CreateBoletoDto } from './dto/create-boleto.dto';
 import { UpdateBoletoDto } from './dto/update-boleto.dto';
 import { Boleto, BoletoEstado } from './entities/boleto.entity';
@@ -18,187 +18,223 @@ import { Boleto, BoletoEstado } from './entities/boleto.entity';
 export class BoletoService {
   constructor(
     @InjectRepository(Boleto)
-    private readonly boletoRepository: Repository<Boleto>,
+    private readonly boletoRepo: Repository<Boleto>,
+
     @InjectRepository(Ciudadano)
-    private readonly ciudadanoRepository: Repository<Ciudadano>,
-    @InjectRepository(Bus)
-    private readonly busRepository: Repository<Bus>,
-    @InjectRepository(Ruta)
-    private readonly rutaRepository: Repository<Ruta>,
-    @InjectRepository(Paradero)
-    private readonly paraderoRepository: Repository<Paradero>,
+    private readonly ciudadanoRepo: Repository<Ciudadano>,
+
+    @InjectRepository(Programacion)
+    private readonly programacionRepo: Repository<Programacion>,
+
+    @InjectRepository(RutaParadero)
+    private readonly rutaParaderoRepo: Repository<RutaParadero>,
+
+    @InjectRepository(MetodoPagoCiudadano)
+    private readonly metodoPagoRepo: Repository<MetodoPagoCiudadano>,
   ) {}
 
-  async create(createBoletoDto: CreateBoletoDto): Promise<Boleto> {
-    const ciudadano = await this.getCiudadanoOrThrow(createBoletoDto.ciudadanoId);
-    const bus = await this.getBusOrThrow(createBoletoDto.busId);
-    const ruta = await this.getRutaOrThrow(createBoletoDto.rutaId);
-    const paraderoAbordaje = await this.getParaderoOrThrow(
-      createBoletoDto.paraderoAbordajeId,
-    );
+  // ── HU-ENTR-2-003: Abordaje ───────────────────────────────────────────────
 
-    const boleto = this.boletoRepository.create({
+  async create(dto: CreateBoletoDto): Promise<Boleto> {
+
+    // 1. Ciudadano
+    const ciudadano = await this.ciudadanoRepo.findOne({
+      where: { id: dto.ciudadanoId },
+    });
+    if (!ciudadano) throw new NotFoundException('Ciudadano no encontrado.');
+
+    // 2. Programación con bus y ruta
+    const programacion = await this.programacionRepo.findOne({
+      where: { id: dto.programacionId },
+      relations: { bus: true, ruta: true },
+    });
+    if (!programacion) throw new NotFoundException('Programación no encontrada.');
+    if (programacion.estado !== 'ACTIVO') {
+      throw new BadRequestException(
+        `La programación no está activa (estado: ${programacion.estado}).`,
+      );
+    }
+
+    // 3. Verificar capacidad del bus
+    const boletosActivos = await this.boletoRepo.count({
+      where: {
+        programacion: { id: programacion.id },
+        estado: BoletoEstado.ACTIVO,
+      },
+    });
+    if (boletosActivos >= programacion.bus.capacidadMaxima) {
+      throw new BadRequestException(
+        `El bus ${programacion.bus.placa} ha alcanzado su capacidad máxima ` +
+        `(${programacion.bus.capacidadMaxima} pasajeros).`,
+      );
+    }
+
+    // 4. RutaParadero de origen (debe pertenecer a la ruta de la programación)
+    const rutaParaderoOrigen = await this.rutaParaderoRepo.findOne({
+      where: { id: dto.rutaParaderoOrigenId },
+      relations: { ruta: true, paradero: true },
+    });
+    if (!rutaParaderoOrigen) {
+      throw new NotFoundException('Paradero de origen no encontrado.');
+    }
+    if (rutaParaderoOrigen.ruta.id !== programacion.ruta.id) {
+      throw new BadRequestException(
+        'El paradero de origen no pertenece a la ruta de esta programación.',
+      );
+    }
+
+    // 5. Método de pago y saldo
+    const metodoPago = await this.metodoPagoRepo.findOne({
+      where: { id: dto.metodoPagoId, ciudadano: { id: dto.ciudadanoId } },
+    });
+    if (!metodoPago) throw new NotFoundException('Método de pago no encontrado.');
+
+    const costo          = parseFloat(programacion.ruta.tarifa as unknown as string);
+    const saldoActual    = parseFloat(metodoPago.saldo as unknown as string);
+
+    if (saldoActual < costo) {
+      throw new BadRequestException(
+        `Saldo insuficiente. Saldo disponible: $${saldoActual.toFixed(2)}, ` +
+        `costo del viaje: $${costo.toFixed(2)}.`,
+      );
+    }
+
+    // 6. Descontar saldo (Asignado como string compatible con columnas Decimal de BD)
+    metodoPago.saldo = (saldoActual - costo).toFixed(2) as unknown as any;
+    await this.metodoPagoRepo.save(metodoPago);
+
+    // 7. Crear boleto
+    const boleto = this.boletoRepo.create({
       ciudadano,
-      bus,
-      ruta,
-      paraderoAbordaje,
-      costo: this.formatDecimal(createBoletoDto.costo, 2),
-      fechaInicio: new Date(),
+      programacion,
+      rutaParaderoOrigen,
       estado: BoletoEstado.ACTIVO,
+      costo:  costo.toFixed(2) as unknown as string,
+      // horaInicio ya no existe — se lee de programacion.horaSalida
     });
 
     try {
-      return await this.boletoRepository.save(boleto);
+      return await this.boletoRepo.save(boleto);
     } catch (error) {
       this.handleDbError(error);
     }
   }
 
-  // ⚡ MODIFICACIÓN SEGURA: Filtro relacional adaptado a tu estructura
-  async findAll(ciudadanoId?: number) {
-    if (ciudadanoId) {
-      return await this.boletoRepository.find({
-        where: {
-          ciudadano: {
-            id: ciudadanoId // Filtra de forma interna el ID en la entidad relacional
-          }
-        },
-        relations: {
-          ciudadano: { persona: true },
-          bus: true,
-          ruta: true,
-          paraderoAbordaje: true,
-          paraderoDescenso: true,
-        }
-      });
+  // ── HU-ENTR-2-004: Descenso ───────────────────────────────────────────────
+
+  async update(id: number, dto: UpdateBoletoDto): Promise<Boleto> {
+
+    const boleto = await this.boletoRepo.findOne({
+      where: { id },
+      relations: {
+        programacion: { bus: true, ruta: true },
+        rutaParaderoOrigen: true,
+      },
+    });
+    if (!boleto) throw new NotFoundException(`Boleto #${id} no encontrado.`);
+
+    if (boleto.estado === BoletoEstado.COMPLETADO) {
+      throw new BadRequestException(
+        `El boleto #${id} ya está completado.`,
+      );
     }
 
-    // Si no viene ningún ID, retorna todo el histórico global (idéntico a tu lógica anterior)
-    return await this.boletoRepository.find({
-      relations: {
-        ciudadano: { persona: true },
-        bus: true,
-        ruta: true,
-        paraderoAbordaje: true,
-        paraderoDescenso: true,
+    if (dto.rutaParaderoDescensoId !== undefined) {
+      
+      const rutaParaderoDescenso = await this.rutaParaderoRepo.findOne({
+        where: { id: dto.rutaParaderoDescensoId },
+        relations: { ruta: true }
+      });
+      
+      if (!rutaParaderoDescenso) {
+        throw new NotFoundException('Paradero de descenso no encontrado.');
       }
+
+      if (rutaParaderoDescenso.ruta.id !== boleto.programacion.ruta.id) {
+        throw new BadRequestException(
+          `El paradero de descenso #${dto.rutaParaderoDescensoId} ` +
+          `no pertenece a la ruta de esta programación.`,
+        );
+      }
+
+      const ordenOrigen   = Number(boleto.rutaParaderoOrigen?.orden);
+      const ordenDescenso = Number(rutaParaderoDescenso.orden);
+
+      if (!isNaN(ordenOrigen) && !isNaN(ordenDescenso) && ordenDescenso <= ordenOrigen) {
+        throw new BadRequestException(
+          `El paradero de descenso (orden ${ordenDescenso}) debe ser ` +
+          `posterior al de abordaje (orden ${ordenOrigen}).`,
+        );
+      }
+
+      boleto.rutaParaderoDescenso = rutaParaderoDescenso;
+      boleto.estado               = BoletoEstado.COMPLETADO;
+      boleto.horaFin              = new Date();
+    }
+
+    try {
+      return await this.boletoRepo.save(boleto);
+    } catch (error) {
+      this.handleDbError(error);
+    }
+  }
+
+  // ── Consultas ─────────────────────────────────────────────────────────────
+
+  async findAll(ciudadanoId?: number): Promise<Boleto[]> {
+    return this.boletoRepo.find({
+      where: ciudadanoId ? { ciudadano: { id: ciudadanoId } } : undefined,
+      relations: {
+        ciudadano:            { persona: true },
+        programacion:         {
+          bus:               true,
+          ruta:              true,
+          conductorAsignado: { persona: true },
+        },
+        rutaParaderoOrigen:   { paradero: true },
+        rutaParaderoDescenso: { paradero: true },
+      },
+      order: { id: 'DESC' },
     });
   }
 
   async findOne(id: number): Promise<Boleto> {
-    const boleto = await this.boletoRepository.findOne({
+    const boleto = await this.boletoRepo.findOne({
       where: { id },
       relations: {
-        ciudadano: { persona: true },
-        bus: true,
-        ruta: true,
-        paraderoAbordaje: true,
-        paraderoDescenso: true,
+        ciudadano:            { persona: true },
+        programacion:         { bus: true, ruta: true, conductorAsignado: { persona: true } },
+        rutaParaderoOrigen:   { paradero: true },
+        rutaParaderoDescenso: { paradero: true },
       },
     });
-    if (!boleto) {
-      throw new NotFoundException('Boleto not found');
-    }
+    if (!boleto) throw new NotFoundException(`Boleto #${id} no encontrado.`);
     return boleto;
   }
 
-  async update(id: number, updateBoletoDto: UpdateBoletoDto): Promise<Boleto> {
-    const boleto = await this.boletoRepository.findOne({ where: { id } });
-    if (!boleto) {
-      throw new NotFoundException('Boleto not found');
-    }
-
-    if (updateBoletoDto.estado === BoletoEstado.COMPLETADO) {
-      if (!updateBoletoDto.paraderoDescensoId || !updateBoletoDto.fechaFin) {
-        throw new BadRequestException(
-          'Completar requiere paraderoDescensoId y fechaFin',
-        );
-      }
-    }
-
-    if (updateBoletoDto.paraderoDescensoId !== undefined) {
-      boleto.paraderoDescenso = await this.getParaderoOrThrow(
-        updateBoletoDto.paraderoDescensoId,
-      );
-    }
-
-    if (updateBoletoDto.estado !== undefined) {
-      boleto.estado = updateBoletoDto.estado;
-    }
-
-    if (updateBoletoDto.fechaFin !== undefined) {
-      boleto.fechaFin = new Date(updateBoletoDto.fechaFin);
-    }
-
-    try {
-      return await this.boletoRepository.save(boleto);
-    } catch (error) {
-      this.handleDbError(error);
-    }
-  }
-
   async remove(id: number): Promise<Boleto> {
-    const boleto = await this.boletoRepository.findOne({ where: { id } });
-    if (!boleto) {
-      throw new NotFoundException('Boleto not found');
-    }
+    const boleto = await this.boletoRepo.findOne({ where: { id } });
+    if (!boleto) throw new NotFoundException(`Boleto #${id} no encontrado.`);
     if (boleto.estado === BoletoEstado.ACTIVO) {
-      throw new BadRequestException('No se puede eliminar un boleto activo');
+      throw new BadRequestException('No se puede eliminar un boleto activo.');
     }
     try {
-      await this.boletoRepository.remove(boleto);
+      await this.boletoRepo.remove(boleto);
       return boleto;
     } catch (error) {
       this.handleDbError(error);
     }
   }
 
-  private async getCiudadanoOrThrow(id: number): Promise<Ciudadano> {
-    const ciudadano = await this.ciudadanoRepository.findOne({
-      where: { id },
-      relations: ['persona'],
-    });
-    if (!ciudadano) {
-      throw new NotFoundException('Ciudadano not found');
-    }
-    return ciudadano;
-  }
-
-  private async getBusOrThrow(id: number): Promise<Bus> {
-    const bus = await this.busRepository.findOne({ where: { id } });
-    if (!bus) {
-      throw new NotFoundException('Bus not found');
-    }
-    return bus;
-  }
-
-  private async getRutaOrThrow(id: number): Promise<Ruta> {
-    const ruta = await this.rutaRepository.findOne({ where: { id } });
-    if (!ruta) {
-      throw new NotFoundException('Ruta not found');
-    }
-    return ruta;
-  }
-
-  private async getParaderoOrThrow(id: number): Promise<Paradero> {
-    const paradero = await this.paraderoRepository.findOne({ where: { id } });
-    if (!paradero) {
-      throw new NotFoundException('Paradero not found');
-    }
-    return paradero;
-  }
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   private handleDbError(error: unknown): never {
     if (error instanceof QueryFailedError) {
-      const driverError = error.driverError as { code?: string } | undefined;
-      if (driverError?.code === 'ER_DUP_ENTRY') {
-        throw new ConflictException('Duplicate value');
+      const driver = error.driverError as { code?: string } | undefined;
+      if (driver?.code === 'ER_DUP_ENTRY') {
+        throw new ConflictException('Valor duplicado.');
       }
     }
     throw error;
-  }
-
-  private formatDecimal(value: number, decimals: number): string {
-    return Number(value).toFixed(decimals);
   }
 }

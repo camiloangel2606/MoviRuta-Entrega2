@@ -6,15 +6,14 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Bus } from '../../bus/entities/bus.entity';
 import { Ciudadano } from '../../ciudadano/entities/ciudadano.entity';
-import { Paradero } from '../../paradero/entities/paradero.entity';
-import { Ruta } from '../../ruta/entities/ruta.entity';
+import { Programacion } from '../../programacion/entities/programacion.entity';
+import { RutaParadero } from '../../ruta-paradero/entities/ruta-paradero.entity';
 
 export enum BoletoEstado {
-  ACTIVO = 'ACTIVO',
+  ACTIVO     = 'ACTIVO',
   COMPLETADO = 'COMPLETADO',
-  CANCELADO = 'CANCELADO',
+  CANCELADO  = 'CANCELADO',
 }
 
 @Entity({ name: 'boleto' })
@@ -25,17 +24,14 @@ export class Boleto {
   @ManyToOne(() => Ciudadano, { nullable: false, onDelete: 'RESTRICT' })
   ciudadano!: Ciudadano;
 
-  @ManyToOne(() => Bus, { nullable: false, onDelete: 'RESTRICT' })
-  bus!: Bus;
+  @ManyToOne(() => Programacion, { nullable: false, onDelete: 'RESTRICT' })
+  programacion!: Programacion;
 
-  @ManyToOne(() => Ruta, { nullable: false, onDelete: 'RESTRICT' })
-  ruta!: Ruta;
+  @ManyToOne(() => RutaParadero, { nullable: false, onDelete: 'RESTRICT' })
+  rutaParaderoOrigen!: RutaParadero;
 
-  @ManyToOne(() => Paradero, { nullable: true, onDelete: 'SET NULL' })
-  paraderoAbordaje?: Paradero | null;
-
-  @ManyToOne(() => Paradero, { nullable: true, onDelete: 'SET NULL' })
-  paraderoDescenso?: Paradero | null;
+  @ManyToOne(() => RutaParadero, { nullable: true, onDelete: 'SET NULL' })
+  rutaParaderoDescenso?: RutaParadero | null;
 
   @Column({ type: 'enum', enum: BoletoEstado, default: BoletoEstado.ACTIVO })
   estado!: BoletoEstado;
@@ -43,11 +39,9 @@ export class Boleto {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   costo!: string;
 
-  @Column({ name: 'fecha_inicio', type: 'datetime' })
-  fechaInicio!: Date;
-
-  @Column({ name: 'fecha_fin', type: 'datetime', nullable: true })
-  fechaFin?: Date | null;
+  // hora_fin: null mientras el viaje está ACTIVO, se llena al registrar descenso
+  @Column({ name: 'hora_fin', type: 'datetime', nullable: true })
+  horaFin?: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
