@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -9,7 +8,6 @@ import { QueryFailedError, Repository } from 'typeorm';
 import { Bus } from '../bus/entities/bus.entity';
 import { Conductor } from '../conductor/entities/conductor.entity';
 import { Ruta } from '../ruta/entities/ruta.entity';
-import { Turno } from '../turno/entities/turno.entity';
 import { CreateProgramacionDto } from './dto/create-programacion.dto';
 import { FindProgramacionQueryDto } from './dto/find-programacion-query.dto';
 import { UpdateProgramacionDto } from './dto/update-programacion.dto';
@@ -26,8 +24,6 @@ export class ProgramacionService {
     private readonly busRepository: Repository<Bus>,
     @InjectRepository(Conductor)
     private readonly conductorRepository: Repository<Conductor>,
-    @InjectRepository(Turno)
-    private readonly turnoRepository: Repository<Turno>,
   ) {}
 
   async create(createProgramacionDto: CreateProgramacionDto): Promise<Programacion> {
@@ -37,12 +33,6 @@ export class ProgramacionService {
 
     const toleranciaMinutos = createProgramacionDto.toleranciaMinutos ?? 0;
     await this.ensureNoOverlap(bus.id, createProgramacionDto.fecha, createProgramacionDto.horaSalida, toleranciaMinutos);
-    await this.ensureConductorEnTurno(
-      bus.id,
-      conductor.id,
-      createProgramacionDto.fecha,
-      createProgramacionDto.horaSalida,
-    );
 
     const programacion = this.programacionRepository.create({
       ruta,
@@ -175,12 +165,6 @@ export class ProgramacionService {
         programacion.toleranciaMinutos,
         programacion.id,
       );
-      await this.ensureConductorEnTurno(
-        programacion.bus.id,
-        programacion.conductorAsignado.id,
-        programacion.fecha,
-        programacion.horaSalida,
-      );
     }
 
     try {
@@ -230,26 +214,6 @@ export class ProgramacionService {
     const existing = await qb.getOne();
     if (existing) {
       throw new ConflictException('Existe una programacion que se solapa para ese bus');
-    }
-  }
-
-  private async ensureConductorEnTurno(
-    busId: number,
-    conductorId: number,
-    fecha: string,
-    horaSalida: string,
-  ): Promise<void> {
-    const dateTime = this.toDateTime(fecha, horaSalida);
-    const turno = await this.turnoRepository
-      .createQueryBuilder('turno')
-      .where('turno.busId = :busId', { busId })
-      .andWhere('turno.conductorId = :conductorId', { conductorId })
-      .andWhere('turno.inicio <= :dateTime', { dateTime })
-      .andWhere('(turno.fin IS NULL OR turno.fin >= :dateTime)', { dateTime })
-      .getOne();
-
-    if (!turno) {
-      throw new BadRequestException('Conductor no tiene turno para ese bus y hora');
     }
   }
 

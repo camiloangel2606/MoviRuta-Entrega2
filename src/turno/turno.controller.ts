@@ -27,6 +27,11 @@ export class TurnoController {
     return this.turnoService.findAll();
   }
 
+  @Get('conductor/:conductorId')
+  findByConductor(@Param('conductorId', ParseIntPipe) conductorId: number) {
+    return this.turnoService.findByConductor(conductorId);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.turnoService.findOne(id);

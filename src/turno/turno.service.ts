@@ -61,6 +61,17 @@ export class TurnoService {
     });
   }
 
+  async findByConductor(conductorId: number): Promise<Turno[]> {
+    await this.getConductorOrThrow(conductorId);
+    return this.turnoRepository.find({
+      where: { conductor: { id: conductorId } },
+      relations: {
+        conductor: { persona: true },
+        bus: true,
+      },
+    });
+  }
+
   async findOne(id: number): Promise<Turno> {
     const turno = await this.turnoRepository.findOne({
       where: { id },
