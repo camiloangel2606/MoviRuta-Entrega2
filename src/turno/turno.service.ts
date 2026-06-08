@@ -165,14 +165,14 @@ export class TurnoService {
       throw new NotFoundException('Turno not found');
     }
 
-    if (turno.estado === TurnoEstado.FINALIZADO) {
-      throw new BadRequestException('No se puede iniciar un turno finalizado');
+    if (turno.estado !== TurnoEstado.PROGRAMADO) {
+      throw new BadRequestException(
+        `Solo se puede iniciar un turno en estado PROGRAMADO (estado actual: ${turno.estado})`,
+      );
     }
 
     turno.estado = TurnoEstado.EN_CURSO;
-    if (!turno.inicio) {
-      turno.inicio = new Date();
-    }
+    turno.inicio = new Date();
 
     if (iniciarTurnoDto.observaciones !== undefined) {
       turno.observaciones = iniciarTurnoDto.observaciones;

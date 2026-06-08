@@ -39,6 +39,10 @@ DB_DATABASE=moviruta_entrega2
 
 # URL del microservicio de seguridad (Spring Boot)
 MS_SECURITY=http://localhost:8080
+
+# ePayco — deben coincidir exactamente con los valores del environment.ts del frontend
+EPAYCO_CUST_ID=1583948
+EPAYCO_P_KEY=85d9be539ada27ad0b8e9a05805d7e23a3f16af
 ```
 
 ---
@@ -331,12 +335,12 @@ MS_SECURITY=http://localhost:8080
 |---|---|---|---|---|
 | POST | `/turno` | Crea turno | `{ conductorId, busId, inicio, fin?, estado?, observaciones? }` | Turno |
 | GET | `/turno` | Lista todos | — | Turno[] |
-| GET | `/turno/conductor/:conductorId` | Lista todos los turnos de un conductor | — | Turno[] |
+| GET | `/turno/conductor/:conductorId` | Lista turnos de un conductor, ordenados por `inicio DESC`. Acepta `?estados=PROGRAMADO,EN_CURSO` (valores separados por coma). Si se omite devuelve todos. Valor inválido → 400. | — | Turno[] |
 | GET | `/turno/:id` | Detalle | — | Turno |
 | PATCH | `/turno/:id` | Actualiza | campos parciales | Turno |
 | DELETE | `/turno/:id` | Elimina | — | — |
-| POST | `/turno/:id/iniciar` | Inicia turno (cambia estado a EN_CURSO) | `IniciarTurnoDto` | Turno |
-| POST | `/turno/:id/finalizar` | Finaliza turno (cambia estado a FINALIZADO) | — | Turno |
+| POST | `/turno/:id/iniciar` | Inicia turno: PROGRAMADO → EN_CURSO. Establece `inicio = NOW()` del servidor. Si el turno no está en PROGRAMADO → 400. | `{ observaciones? }` | Turno |
+| POST | `/turno/:id/finalizar` | Finaliza turno: EN_CURSO → FINALIZADO. Establece `fin = NOW()` del servidor. Si ya está FINALIZADO → 400. | — | Turno |
 
 ---
 
@@ -350,16 +354,18 @@ MS_SECURITY=http://localhost:8080
 | PATCH | `/programacion/:id` | Actualiza | campos parciales | Programacion |
 | DELETE | `/programacion/:id` | Elimina | — | — |
 
+> **Validación de conflictos de bus:** Al crear o actualizar una programación se verifica que el bus no tenga otra programación solapada (mismo día ± `toleranciaMinutos`). **Las programaciones en estado `FINALIZADO` o `CANCELADO` se consideran recursos liberados y se excluyen de esta validación** — el mismo bus puede reutilizarse en el mismo horario una vez su programación previa esté finalizada o cancelada.
+
 ---
 
 ### `/boleto`
 
 | Método | Ruta | Qué hace | Body esperado | Respuesta |
 |---|---|---|---|---|
-| POST | `/boleto` | Compra boleto | `{ ciudadanoId, programacionId, rutaParaderoOrigenId, metodoPagoId }` | Boleto |
+| POST | `/boleto` | Compra boleto. Acepta programación en estado `ACTIVO` o `EN_CURSO` (sube en paradero intermedio). Rechaza `FINALIZADO`/`CANCELADO`. | `{ ciudadanoId, programacionId, rutaParaderoOrigenId, metodoPagoId }` | Boleto |
 | GET | `/boleto` | Lista boletos (filtra con `?ciudadanoId=`) | — | Boleto[] |
 | GET | `/boleto/:id` | Detalle | — | Boleto |
-| PATCH | `/boleto/:id` | Actualiza boleto | campos parciales | Boleto |
+| PATCH | `/boleto/:id` | **Registra descenso** enviando `{ rutaParaderoDescensoId }`. El backend pone `estado=COMPLETADO`, `horaFin=NOW()` y valida que el paradero pertenezca a la ruta del boleto y que su `orden` sea mayor al de origen. Si el boleto tiene datos huérfanos (programación/ruta nulas) responde `400` con mensaje claro en vez de 500. | `{ rutaParaderoDescensoId }` | Boleto |
 | DELETE | `/boleto/:id` | Elimina | — | — |
 
 ---
@@ -493,6 +499,33 @@ MS_SECURITY=http://localhost:8080
 
 ---
 
+### `/pagos`
+
+Módulo de recarga de tarjeta vía ePayco. El flujo es: frontend obtiene referencia → abre checkout ePayco → ePayco llama al webhook de confirmación → backend acredita saldo.
+
+| Método | Ruta | Qué hace | Body esperado | Respuesta |
+|---|---|---|---|---|
+| POST | `/pagos/referencia` | Genera referencia única para el checkout de ePayco | `{ tarjetaId: string, monto: number }` | `{ referencia, monto, descripcion }` (HTTP 201) |
+| POST | `/pagos/confirmacion` | Webhook server-to-server de ePayco. Verifica firma SHA256 y acredita saldo si pago fue aprobado | `application/x-www-form-urlencoded` (ePayco lo llama automáticamente) | `{ success: boolean }` (siempre HTTP 200) |
+| GET | `/pagos/respuesta` | Redirección del navegador del usuario tras el pago. No modifica saldo. | query params de ePayco (ignorados) | `{ mensaje: string }` (HTTP 200) |
+
+**Detalles de `POST /pagos/referencia`:**
+- `tarjetaId`: string numérico — es el `id` del `MetodoPagoCiudadano`
+- `monto`: number, mínimo 5000, máximo 500000
+- 404 si no existe el `MetodoPagoCiudadano`
+- Referencia generada: `REC-${Date.now()}-${tarjetaId}`
+- `descripcion` incluye el `tipo` del `MetodoPago` (TARJETA / EFECTIVO / TRANSFERENCIA)
+
+**Detalles de `POST /pagos/confirmacion`:**
+- ePayco envía el body como `application/x-www-form-urlencoded`
+- Campo clave `x_invoice`: debe contener la referencia generada por `/pagos/referencia` (formato `REC-{ts}-{tarjetaId}`)
+- Verifica firma: `SHA256(EPAYCO_CUST_ID^EPAYCO_P_KEY^x_ref_payco^x_amount^x_currency_code^x_response)`
+- Solo acredita saldo si firma válida **y** `x_response === 'Aceptada'`
+- Acreditación: `parseFloat(saldo) + parseFloat(x_amount)`, guardado con `.toFixed(2)`
+- Siempre retorna HTTP 200 para evitar reintentos de ePayco
+
+---
+
 ## Cómo se autentica (espera token del ms-security?)
 
 Sí. El microservicio de negocio delega **toda la autenticación y autorización** al microservicio `ms-security` (Spring Boot, puerto 8080).
@@ -567,7 +600,9 @@ La URL base de ms-security se configura con la variable `MS_SECURITY=http://loca
    - Luego `POST /persona` con ese `securityUserId`.
    - Luego `POST /ciudadano` o `POST /conductor` según el rol.
 
-3. **Boleto requiere programación activa.** Para crear un boleto se necesita el `programacionId`, el `rutaParaderoOrigenId` (paradero donde aborda), el `ciudadanoId` y el `metodoPagoId`. El campo `costo` se calcula en el servicio a partir de la tarifa de la ruta.
+3. **Boleto requiere programación abordable.** Para crear un boleto se necesita el `programacionId`, el `rutaParaderoOrigenId` (paradero donde aborda), el `ciudadanoId` y el `metodoPagoId`. El campo `costo` se calcula en el servicio a partir de la tarifa de la ruta. La programación se acepta tanto en `ACTIVO` como en `EN_CURSO` (el bus va en ruta y el ciudadano se sube en un paradero intermedio).
+
+3.1. **Descenso de boleto.** Se hace con `PATCH /boleto/:id` enviando `{ rutaParaderoDescensoId }` (id del `RutaParadero`, no del paradero). El backend valida pertenencia a la ruta del boleto + `orden > orden de origen`, marca `estado=COMPLETADO` y setea `horaFin`. Para obtener el id del `RutaParadero` de cada paradero posterior NO sirve `GET /ruta/:id/paraderos` (no devuelve el id del RP), usar `GET /ruta-paradero` y filtrar client-side por `rutaId`.
 
 4. **GPS en tiempo real.** Usar `PATCH /gps/:id/posicion` con `{ latitud, longitud }` para actualizaciones de posición del bus. No usar el PATCH general del GPS para posición.
 
@@ -593,3 +628,17 @@ La URL base de ms-security se configura con la variable `MS_SECURITY=http://loca
 13. **Turnos por conductor.** Usar `GET /turno/conductor/:conductorId` para obtener todos los turnos de un conductor específico. Retorna `404` si el conductor no existe y `[]` si no tiene turnos asignados. La ruta `/conductor/:conductorId` está declarada antes de `/:id` en el controlador para evitar conflicto de rutas en NestJS.
 
 12. **ValidationPipe estricto.** El backend rechazará (HTTP 400) cualquier campo extra no definido en los DTOs. Enviar exactamente los campos documentados.
+
+14. **Recarga vía ePayco — flujo completo:**
+    1. Frontend llama `POST /pagos/referencia` para obtener `{ referencia, monto, descripcion }`.
+    2. Frontend pasa `referencia` como campo `invoice` al checkout JS de ePayco.
+    3. Campos `response` y `confirmation` del checkout deben apuntar a URLs **públicas** del backend (no localhost). En desarrollo usar `ngrok http 3000`.
+    4. ePayco redirige el navegador a `GET /pagos/respuesta` (solo informativo).
+    5. ePayco hace `POST /pagos/confirmacion` server-to-server — aquí se acredita el saldo.
+    6. Para leer el saldo actualizado consultar `GET /metodo-pago-ciudadano/:id`.
+
+15. **Webhook ePayco requiere `express.urlencoded`.**  `main.ts` tiene `app.use(express.urlencoded({ extended: true }))` antes del pipe de validación. Sin esto el body de `POST /pagos/confirmacion` llega vacío y la firma siempre falla.
+
+16. **Variables ePayco deben coincidir entre frontend y backend.** `EPAYCO_CUST_ID` y `EPAYCO_P_KEY` del `.env` del backend **deben ser idénticos** a `epayco.p_cust_id_cliente` y `epayco.p_key` del `environment.ts` del frontend (mismo comercio ePayco).
+
+17. **`POST /turno/:id/iniciar` y `/finalizar` usan timestamp del servidor.** No envíes fechas en el body para estos endpoints — el backend siempre asigna `inicio = NOW()` al iniciar y `fin = NOW()` al finalizar. El campo `inicio` del body de creación (`POST /turno`) sí se respeta, pero se sobreescribe al iniciar.

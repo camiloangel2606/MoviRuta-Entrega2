@@ -49,9 +49,13 @@ export class BoletoService {
       relations: { bus: true, ruta: true },
     });
     if (!programacion) throw new NotFoundException('Programación no encontrada.');
-    if (programacion.estado !== 'ACTIVO') {
+    // El abordaje se permite tanto si la programación está ACTIVO (aún no
+    // arranca) como EN_CURSO (el bus va en ruta y el ciudadano se sube en
+    // un paradero intermedio). FINALIZADO/CANCELADO sí bloquean.
+    const estadosAbordaje = ['ACTIVO', 'EN_CURSO'];
+    if (!estadosAbordaje.includes(programacion.estado)) {
       throw new BadRequestException(
-        `La programación no está activa (estado: ${programacion.estado}).`,
+        `La programación no permite abordaje (estado: ${programacion.estado}).`,
       );
     }
 
@@ -148,6 +152,22 @@ export class BoletoService {
       
       if (!rutaParaderoDescenso) {
         throw new NotFoundException('Paradero de descenso no encontrado.');
+      }
+
+      // Datos huérfanos: si el boleto no tiene programación o la programación
+      // no tiene ruta cargada, no podemos validar la pertenencia → 400 claro
+      // en vez de TypeError 500.
+      if (!boleto.programacion || !boleto.programacion.ruta) {
+        throw new BadRequestException(
+          `El boleto #${id} tiene datos inconsistentes (programación o ruta no disponibles). ` +
+          `No se puede registrar descenso.`,
+        );
+      }
+
+      if (!rutaParaderoDescenso.ruta) {
+        throw new BadRequestException(
+          `El paradero de descenso #${dto.rutaParaderoDescensoId} no tiene ruta asociada.`,
+        );
       }
 
       if (rutaParaderoDescenso.ruta.id !== boleto.programacion.ruta.id) {
