@@ -61,15 +61,22 @@ export class TurnoService {
     });
   }
 
-  async findByConductor(conductorId: number): Promise<Turno[]> {
+  async findByConductor(conductorId: number, estados?: TurnoEstado[]): Promise<Turno[]> {
     await this.getConductorOrThrow(conductorId);
-    return this.turnoRepository.find({
-      where: { conductor: { id: conductorId } },
-      relations: {
-        conductor: { persona: true },
-        bus: true,
-      },
-    });
+
+    const qb = this.turnoRepository
+      .createQueryBuilder('turno')
+      .leftJoinAndSelect('turno.conductor', 'conductor')
+      .leftJoinAndSelect('conductor.persona', 'persona')
+      .leftJoinAndSelect('turno.bus', 'bus')
+      .where('conductor.id = :conductorId', { conductorId })
+      .orderBy('turno.inicio', 'DESC');
+
+    if (estados && estados.length > 0) {
+      qb.andWhere('turno.estado IN (:...estados)', { estados });
+    }
+
+    return qb.getMany();
   }
 
   async findOne(id: number): Promise<Turno> {

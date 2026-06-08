@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,10 +8,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CreateTurnoDto } from './dto/create-turno.dto';
 import { IniciarTurnoDto } from './dto/iniciar-turno.dto';
 import { UpdateTurnoDto } from './dto/update-turno.dto';
+import { TurnoEstado } from './entities/turno.entity';
 import { TurnoService } from './turno.service';
 
 @Controller('turno')
@@ -28,8 +31,24 @@ export class TurnoController {
   }
 
   @Get('conductor/:conductorId')
-  findByConductor(@Param('conductorId', ParseIntPipe) conductorId: number) {
-    return this.turnoService.findByConductor(conductorId);
+  findByConductor(
+    @Param('conductorId', ParseIntPipe) conductorId: number,
+    @Query('estados') estadosRaw?: string,
+  ) {
+    const estadosValidos = Object.values(TurnoEstado);
+    const estados = estadosRaw
+      ? estadosRaw.split(',').map((e) => {
+          const val = e.trim().toUpperCase();
+          if (!estadosValidos.includes(val as TurnoEstado)) {
+            throw new BadRequestException(
+              `Estado inválido: "${e.trim()}". Valores permitidos: ${estadosValidos.join(', ')}`,
+            );
+          }
+          return val as TurnoEstado;
+        })
+      : undefined;
+
+    return this.turnoService.findByConductor(conductorId, estados);
   }
 
   @Get(':id')

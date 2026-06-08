@@ -1,11 +1,15 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // ✅ Habilitar CORS para permitir que Angular (puerto 4200) se comunique con NestJS
+  // Necesario para que el webhook de ePayco (x-www-form-urlencoded) llegue parseado
+  app.use(express.urlencoded({ extended: true }));
+
   app.enableCors({
     origin: 'http://localhost:4200', // Reemplaza con tu URL de Angular si es diferente
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',

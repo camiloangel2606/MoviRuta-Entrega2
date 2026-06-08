@@ -25,6 +25,7 @@ import { IncidenteModule } from './incidente/incidente.module';
 import { FotoModule } from './foto/foto.module';
 import { IncidenteBusModule } from './incidente-bus/incidente-bus.module';
 import { ProgramacionModule } from './programacion/programacion.module';
+import { PagosModule } from './pagos/pagos.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { ProgramacionModule } from './programacion/programacion.module';
     FotoModule,
     IncidenteBusModule,
     ProgramacionModule,
+    PagosModule,
   ],
 })
 export class AppModule {}

@@ -199,6 +199,9 @@ export class ProgramacionService {
       .createQueryBuilder('programacion')
       .where('programacion.busId = :busId', { busId })
       .andWhere('programacion.fecha = :fecha', { fecha })
+      .andWhere('programacion.estado NOT IN (:...estadosLibres)', {
+        estadosLibres: ['FINALIZADO', 'CANCELADO'],
+      })
       .andWhere(
         'ABS(TIME_TO_SEC(programacion.hora_salida) - TIME_TO_SEC(:horaSalida)) <= :toleranciaSegundos',
         {
