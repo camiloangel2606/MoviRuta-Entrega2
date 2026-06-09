@@ -21,11 +21,18 @@ export class PersonaService {
     private readonly conductorRepository: Repository<Conductor>,
   ) {}
 
-  // Busca la persona por su UUID de seguridad (Usado por el GET del controlador)
-  async findBySecurityId(securityUserId: string): Promise<Persona | null> {
-    return await this.personaRepository.findOne({
-      where: { securityUserId: securityUserId }
+  // Busca la persona por su UUID de seguridad e incluye el ciudadanoId en la respuesta
+  async findBySecurityId(securityUserId: string): Promise<(Persona & { ciudadanoId: number | null }) | null> {
+    const persona = await this.personaRepository.findOne({
+      where: { securityUserId }
     });
+    if (!persona) return null;
+
+    const ciudadano = await this.ciudadanoRepository.findOne({
+      where: { persona: { id: persona.id } },
+    });
+
+    return Object.assign(persona, { ciudadanoId: ciudadano?.id ?? null });
   }
 
   // Crea la fila en la tabla conductor si no existe (Usado por el POST del controlador)

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { MetodoPagoCiudadanoService } from './metodo-pago-ciudadano.service';
 import { CreateMetodoPagoCiudadanoDto } from './dto/create-metodo-pago-ciudadano.dto';
 import { UpdateMetodoPagoCiudadanoDto } from './dto/update-metodo-pago-ciudadano.dto';
@@ -13,8 +13,9 @@ export class MetodoPagoCiudadanoController {
   }
 
   @Get()
-  findAll() {
-    return this.metodoPagoCiudadanoService.findAll();
+  findAll(@Query('ciudadanoId') ciudadanoId?: string) {
+    const cid = ciudadanoId !== undefined ? Number(ciudadanoId) : undefined;
+    return this.metodoPagoCiudadanoService.findAll(cid);
   }
 
   @Get(':id')

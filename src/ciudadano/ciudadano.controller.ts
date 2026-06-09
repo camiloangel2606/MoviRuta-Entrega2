@@ -25,6 +25,12 @@ export class CiudadanoController {
     return this.ciudadanoService.findOne(ciudadanoId);
   }
 
+  @Patch('by-persona/:personaId')
+  updateByPersona(@Param('personaId') personaId: string, @Body() updateCiudadanoDto: UpdateCiudadanoDto) {
+    const pid = this.toPositiveInt(personaId, 'Persona id');
+    return this.ciudadanoService.updateByPersonaId(pid, updateCiudadanoDto);
+  }
+
   @Patch(':id')
   //@UseGuards(SecurityGuard) // <-- SÓLO AQUÍ. Intercepta el PATCH.
   update(@Param('id') id: string, @Body() updateCiudadanoDto: UpdateCiudadanoDto) {

@@ -44,8 +44,9 @@ export class MetodoPagoCiudadanoService {
     }
   }
 
-  async findAll(): Promise<MetodoPagoCiudadano[]> {
+  async findAll(ciudadanoId?: number): Promise<MetodoPagoCiudadano[]> {
     return this.metodoPagoCiudadanoRepository.find({
+      where: ciudadanoId ? { ciudadano: { id: ciudadanoId } } : {},
       relations: ['ciudadano', 'metodoPago'],
     });
   }

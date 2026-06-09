@@ -74,6 +74,26 @@ export class CiudadanoService {
     }
   }
 
+  async updateByPersonaId(personaId: number, updateCiudadanoDto: UpdateCiudadanoDto): Promise<Ciudadano> {
+    const ciudadano = await this.ciudadanoRepository.findOne({
+      where: { persona: { id: personaId } },
+      relations: ['persona'],
+    });
+    if (!ciudadano) {
+      throw new NotFoundException('Ciudadano not found for persona ' + personaId);
+    }
+
+    if (updateCiudadanoDto.fechaNacimiento !== undefined) {
+      ciudadano.fechaNacimiento = updateCiudadanoDto.fechaNacimiento;
+    }
+
+    try {
+      return await this.ciudadanoRepository.save(ciudadano);
+    } catch (error) {
+      this.handleDbError(error);
+    }
+  }
+
   async remove(id: number): Promise<Ciudadano> {
     const ciudadano = await this.ciudadanoRepository.findOne({ where: { id } });
     if (!ciudadano) {
