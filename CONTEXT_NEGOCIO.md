@@ -152,6 +152,7 @@ EPAYCO_P_KEY=85d9be539ada27ad0b8e9a05805d7e23a3f16af
 | programacion | Programacion | FK, RESTRICT |
 | rutaParaderoOrigen | RutaParadero | FK, RESTRICT |
 | rutaParaderoDescenso | RutaParadero | FK, nullable, SET NULL |
+| metodoPagoCiudadano | MetodoPagoCiudadano | FK, nullable, SET NULL — se guarda en el abordaje |
 | estado | enum | ACTIVO \| COMPLETADO \| CANCELADO |
 | costo | decimal(10,2) | requerido |
 | horaFin | datetime | se llena al descender |
@@ -472,6 +473,40 @@ EPAYCO_P_KEY=85d9be539ada27ad0b8e9a05805d7e23a3f16af
 | GET | `/metodo-pago-ciudadano/:id` | Detalle | — | MetodoPagoCiudadano |
 | PATCH | `/metodo-pago-ciudadano/:id` | Actualiza | campos parciales | MetodoPagoCiudadano |
 | DELETE | `/metodo-pago-ciudadano/:id` | Elimina | — | — |
+
+---
+
+### `/reportes`
+
+Reportes agregados para administración (HU-2014).
+
+| Método | Ruta | Qué hace | Body / Query | Respuesta |
+|---|---|---|---|---|
+| GET | `/reportes/ingresos` | Ingresos por mes y método de pago de los últimos N meses. Solo boletos `COMPLETADO`. | Query `?meses=3\|6\|12` (default 6) | `IngresosMensualesResponse` |
+
+**Forma de la respuesta `GET /reportes/ingresos`:**
+
+```json
+{
+  "meses": ["Ene 2026", "Feb 2026", "Mar 2026", "Abr 2026", "May 2026", "Jun 2026"],
+  "series": [
+    { "metodoPago": "Tarjeta prepagada", "data": [120000, 150000, 180000, 200000, 210000, 230000] },
+    { "metodoPago": "Efectivo",          "data": [80000, 90000, 70000, 95000, 100000, 110000] }
+  ],
+  "totales": [
+    { "metodoPago": "Tarjeta prepagada", "total": 1090000, "porcentaje": 67.3 },
+    { "metodoPago": "Efectivo",          "total": 545000,  "porcentaje": 32.7 }
+  ],
+  "totalGeneral": 1635000,
+  "rango": { "desde": "2026-01-01", "hasta": "2026-06-08", "meses": 6 }
+}
+```
+
+- `meses[]` (eje X) en español, ordenados de más antiguo a más reciente.
+- `series[]` para el gráfico de barras apiladas (una serie por método de pago).
+- `totales[]` ya viene ordenado por monto descendente — listo para `MatTable`.
+- Si un boleto tiene `metodoPagoCiudadano = null` (registros antiguos) se agrupa bajo `"Sin método"`.
+- `meses` inválido (≠ 3, 6 o 12) → HTTP 400.
 
 ---
 

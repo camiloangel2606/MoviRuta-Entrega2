@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Ciudadano } from '../../ciudadano/entities/ciudadano.entity';
+import { MetodoPagoCiudadano } from '../../metodo-pago-ciudadano/entities/metodo-pago-ciudadano.entity';
 import { Programacion } from '../../programacion/entities/programacion.entity';
 import { RutaParadero } from '../../ruta-paradero/entities/ruta-paradero.entity';
 
@@ -32,6 +33,9 @@ export class Boleto {
 
   @ManyToOne(() => RutaParadero, { nullable: true, onDelete: 'SET NULL' })
   rutaParaderoDescenso?: RutaParadero | null;
+
+  @ManyToOne(() => MetodoPagoCiudadano, { nullable: true, onDelete: 'SET NULL' })
+  metodoPagoCiudadano?: MetodoPagoCiudadano | null;
 
   @Column({ type: 'enum', enum: BoletoEstado, default: BoletoEstado.ACTIVO })
   estado!: BoletoEstado;

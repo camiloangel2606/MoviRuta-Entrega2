@@ -112,6 +112,7 @@ export class BoletoService {
       ciudadano,
       programacion,
       rutaParaderoOrigen,
+      metodoPagoCiudadano: metodoPago,
       estado: BoletoEstado.ACTIVO,
       costo:  costo.toFixed(2) as unknown as string,
       // horaInicio ya no existe — se lee de programacion.horaSalida
