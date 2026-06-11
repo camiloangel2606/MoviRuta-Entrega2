@@ -6,6 +6,8 @@ import { UpdatePersonaDto } from './dto/update-persona.dto';
 import { Persona } from './entities/persona.entity';
 import { Ciudadano } from '../ciudadano/entities/ciudadano.entity';
 import { Conductor } from '../conductor/entities/conductor.entity';
+import { MetodoPago, MetodoPagoTipo } from '../metodo-pago/entities/metodo-pago.entity';
+import { MetodoPagoCiudadano } from '../metodo-pago-ciudadano/entities/metodo-pago-ciudadano.entity';
 
 @Injectable()
 export class PersonaService {
@@ -19,6 +21,12 @@ export class PersonaService {
 
     @InjectRepository(Conductor)
     private readonly conductorRepository: Repository<Conductor>,
+
+    @InjectRepository(MetodoPago)
+    private readonly metodoPagoRepository: Repository<MetodoPago>,
+
+    @InjectRepository(MetodoPagoCiudadano)
+    private readonly metodoPagoCiudadanoRepository: Repository<MetodoPagoCiudadano>,
   ) {}
 
   // Busca la persona por su UUID de seguridad e incluye el ciudadanoId en la respuesta
@@ -66,17 +74,39 @@ export class PersonaService {
       this.handleDbError(error);
     }
 
+    let ciudadanoGuardado: Ciudadano;
     try {
       // Todo usuario registrado de base se inicializa en la tabla ciudadano
       const nuevoCiudadano = this.ciudadanoRepository.create({
         persona: personaGuardada,
         fechaNacimiento: null,
       });
-      await this.ciudadanoRepository.save(nuevoCiudadano);
+      ciudadanoGuardado = await this.ciudadanoRepository.save(nuevoCiudadano);
       console.log(`[ÉXITO] Ciudadano vinculado automáticamente a la Persona ID: ${personaGuardada.id}`);
     } catch (error) {
       await this.personaRepository.remove(personaGuardada);
       throw new ConflictException('No se pudo inicializar la subtabla de Ciudadano. Registro cancelado.');
+    }
+
+    try {
+      const metodoPagoTarjeta = await this.metodoPagoRepository.findOne({
+        where: { tipo: MetodoPagoTipo.TARJETA },
+      });
+
+      if (metodoPagoTarjeta) {
+        const tarjeta = this.metodoPagoCiudadanoRepository.create({
+          ciudadano: ciudadanoGuardado,
+          metodoPago: metodoPagoTarjeta,
+          identificador: `TARJETA-${ciudadanoGuardado.id}`,
+          saldo: '0.00',
+        });
+        await this.metodoPagoCiudadanoRepository.save(tarjeta);
+        console.log(`[ÉXITO] Tarjeta prepagada creada automáticamente para Ciudadano ID: ${ciudadanoGuardado.id}`);
+      } else {
+        console.warn(`[ADVERTENCIA] No se encontró un MetodoPago de tipo TARJETA. Tarjeta no creada para Ciudadano ID: ${ciudadanoGuardado.id}`);
+      }
+    } catch (error) {
+      console.error(`[ERROR] No se pudo crear la tarjeta prepagada para Ciudadano ID: ${ciudadanoGuardado.id}`, error);
     }
 
     return personaGuardada;
